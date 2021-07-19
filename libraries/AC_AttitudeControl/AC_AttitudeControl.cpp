@@ -602,6 +602,13 @@ void AC_AttitudeControl::attitude_controller_run_quat()
     Quaternion attitude_vehicle_quat;
     _ahrs.get_quat_body_to_ned(attitude_vehicle_quat);
 
+    // Change roll input
+
+    float roll = _ahrs.get_roll();
+    float pitch = _attitude_target_quat.get_euler_pitch();
+    float yaw = _attitude_target_quat.get_euler_yaw();
+
+    _attitude_target_quat.from_euler(roll, pitch, yaw);
     // Compute attitude error
     Vector3f attitude_error_vector;
     thrust_heading_rotation_angles(_attitude_target_quat, attitude_vehicle_quat, attitude_error_vector, _thrust_error_angle);

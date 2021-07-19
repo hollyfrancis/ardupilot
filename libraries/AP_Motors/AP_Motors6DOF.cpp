@@ -171,9 +171,11 @@ void AP_Motors6DOF::setup_motors(motor_frame_class frame_class, motor_frame_type
         add_motor_raw_6dof(AP_MOTORS_MOT_6,     -1.0f,          0,              0,              -1.0f,              0,                  0,              6);
         break;
 
+        //                 Motor #              Roll Factor     Pitch Factor    Yaw Factor      Throttle Factor     Forward Factor      Lateral Factor  Testing Order
     case SUB_FRAME_CUSTOM:
-        // Put your custom motor setup here
-        //break;
+        add_motor_raw_6dof(AP_MOTORS_MOT_1,     1.0f,              1.0f,           1.0f,           0f,                  0,                  0,              1);
+        add_motor_raw_6dof(AP_MOTORS_MOT_2,     1.0f,              1.0f,           1.0f,           0f,                  0,                  0,              2);
+        break;
 
     case SUB_FRAME_SIMPLEROV_3:
         add_motor_raw_6dof(AP_MOTORS_MOT_1,     0,              0,              -1.0f,          0,                  1.0f,               0,              1);
@@ -296,7 +298,7 @@ void AP_Motors6DOF::output_armed_stabilizing()
         float   forward_thrust;             // forward thrust input value, +/- 1.0
         float   lateral_thrust;             // lateral thrust input value, +/- 1.0
 
-        roll_thrust = (_roll_in + _roll_in_ff);
+        roll_thrust = (_roll_in); // HBF removed "+ _roll_in_ff"
         pitch_thrust = (_pitch_in + _pitch_in_ff);
         yaw_thrust = (_yaw_in + _yaw_in_ff);
         throttle_thrust = get_throttle_bidirectional();
@@ -323,25 +325,31 @@ void AP_Motors6DOF::output_armed_stabilizing()
             limit.throttle_upper = true;
         }
 
-        // calculate roll, pitch and yaw for each motor
-        for (i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++) {
-            if (motor_enabled[i]) {
-                rpy_out[i] = roll_thrust * _roll_factor[i] +
-                             pitch_thrust * _pitch_factor[i] +
-                             yaw_thrust * _yaw_factor[i];
-
-            }
+        // calculate roll, pitch and yaw for each motor, added by HBF
+        float fin_angle = 45 * 3.14159 / 180;
+        float roll_rad = get_roll() * 3.14159 / 180;
+        if (motor_enabled[0]) {
+            rpy_out[0] = roll_thrust * _roll_factor[0] +
+                        pitch_thrust * _pitch_factor[0] * cosf(fin_angle + roll_rad) +
+                        yaw_thrust * _yaw_factor[0] * sinf(fin_angle + roll_rad);
         }
 
+        if (motor_enabled[1]) {
+            rpy_out[1] = roll_thrust * _roll_factor[1] +
+                        pitch_thrust * _pitch_factor[1] * sinf(fin_angle + roll_rad) +
+                        yaw_thrust * _yaw_factor[1] * cosf(fin_angle + roll_rad);
+        }
+
+        //Removed by HBF
         // calculate linear command for each motor
         // linear factors should be 0.0 or 1.0 for now
-        for (i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++) {
+        /*for (i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++) {
             if (motor_enabled[i]) {
                 linear_out[i] = throttle_thrust * _throttle_factor[i] +
                                 forward_thrust * _forward_factor[i] +
                                 lateral_thrust * _lateral_factor[i];
             }
-        }
+        } */
 
         // Calculate final output for each motor
         for (i=0; i<AP_MOTORS_MAX_NUM_MOTORS; i++) {
